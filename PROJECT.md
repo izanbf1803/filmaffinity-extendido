@@ -1,6 +1,8 @@
-# FilmAffinity Advanced Filters (Chrome extension)
+# FilmAffinity Filtros (Chrome extension)
 
 ## Objective
+
+**Audience:** the extension is for Spanish users. It targets the Spanish site (`filmaffinity.com/es/`), and its UI text is in Spanish.
 
 Extend https://www.filmaffinity.com/es/ with advanced, custom filtering that the site doesn't offer, applied directly on the pages the user already uses (their lists, and later search results).
 

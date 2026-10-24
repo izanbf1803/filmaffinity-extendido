@@ -1,4 +1,4 @@
-# FilmAffinity Advanced Filters
+# FilmAffinity Filtros
 
 A Chrome extension that adds a filter panel (opened from the toolbar icon) for your [FilmAffinity](https://www.filmaffinity.com/es/main.html) lists, so you can show only the films available on the streaming platforms you choose. Goals and design notes are in [PROJECT.md](PROJECT.md).
 
@@ -15,12 +15,12 @@ No API key is needed. The popup's Tailwind CSS is pre-built and committed (`src/
 2. Open `chrome://extensions` in Chrome.
 3. Turn on **Developer mode** (top-right switch).
 4. Click **Load unpacked** and select this project folder.
-5. The extension "FilmAffinity Advanced Filters" now appears in the list. Pin it so its icon is always in the toolbar.
+5. The extension "FilmAffinity Filtros" now appears in the list. Pin it so its icon is always in the toolbar.
 
 ## Usage
 
 1. Log in to filmaffinity.com and open one of your lists.
-2. Click the extension icon in the toolbar (pin it from the puzzle-piece menu). The popup lists the platforms found so far; it fills in as the extension reads each film's page (about 2-3 films per second), with a `done/total` counter.
+2. Click the extension icon in the toolbar (pin it from the puzzle-piece menu). The popup lists the platforms found so far; it fills in as the extension reads each film's page (4 parallel workers, about 3 films per second when not cached; cached films resolve instantly), with a `done/total` counter.
 3. Everything is off by default, and your settings are remembered between visits. The **Restablecer filtros** button at the bottom returns everything to the default (off, nothing selected). The top switch turns the whole extension on or off (while off, nothing is hidden and no film pages are fetched).
 4. **Plataformas** has its own on/off switch, with one switch per platform. Only films available on at least one switched-on platform stay visible; with none switched on, everything is shown. Turning the filter off keeps your selection.
 5. **Tipo de disponibilidad** chooses which kind of availability counts: Suscripción, Alquiler or Compra. With none switched on, any type counts.
@@ -49,7 +49,7 @@ Go to `chrome://extensions` and click the reload icon on the extension card, the
 - **No platforms found:** open DevTools on a film page and run
   `fetch(location.href).then(r=>r.text()).then(t=>console.log(t.includes('stream-wrapper')))`.
   If it prints `false`, the "Disponible en" block is added by JavaScript and this approach needs changing.
-- **Slow or stalls on long lists:** FilmAffinity may rate-limit requests. Check the DevTools console for `[fa-filter]` warnings; the extension waits 10 seconds after an HTTP 429. You can raise `DELAY_MS` in `src/content.js`.
+- **Slow or stalls on long lists:** FilmAffinity may rate-limit requests. Check the DevTools console for `[fa-filter]` warnings; all workers pause 10 seconds after an HTTP 429. You can lower `WORKERS` or raise `MIN_DELAY_MS`/`MAX_DELAY_MS` in `src/content.js`.
 - **Reset the cache:** remove and re-add the extension (the cache lives in its own storage), or lower `TTL_MS` in `src/content.js`.
 
 ## Project layout

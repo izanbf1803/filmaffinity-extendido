@@ -1,8 +1,11 @@
-// FilmAffinity Advanced Filters: filter list items by streaming platform.
+// FilmAffinity Filtros: filter list items by streaming platform.
 // Flow: find film cards -> fetch each film page (throttled, cached) -> parse "Disponible en" -> filter.
 
 const TTL_MS = 24 * 3600 * 1000;
-const DELAY_MS = 400;
+const WORKERS = 4;
+const MIN_DELAY_MS = 500; // random pause after each network fetch, per worker
+const MAX_DELAY_MS = 2000;
+const BACKOFF_MS = 10000; // pause all workers after an HTTP 429
 
 const state = {
   cards: [],            // { id, el, providers: {type: [platform]} | null }
@@ -12,8 +15,11 @@ const state = {
   enabled: false,       // master switch (everything is off by default)
   platformFilter: false, // on/off for the platform filter (selection is kept while off)
   done: 0,
-  loading: false,
 };
+
+let queue = [];       // cards still to resolve, shared by the workers
+let running = false;  // true while workers are active
+let pausedUntil = 0;  // rate-limit backoff, shared by the workers
 
 // ---- parsing -------------------------------------------------------------
 
@@ -58,39 +64,61 @@ function findCards() {
 
 // ---- fetching + cache ----------------------------------------------------
 
-async function getProviders(id) {
-  const key = 'fa:' + id;
-  const cached = (await chrome.storage.local.get(key))[key];
-  if (cached && Date.now() - cached.t < TTL_MS) return cached.providers;
+const cacheKey = (id) => 'fa:' + id;
+const isFresh = (entry) => entry && Date.now() - entry.t < TTL_MS;
 
+async function fetchProviders(id) {
   const res = await fetch(`/${location.pathname.split('/')[1]}/film${id}.html`, { credentials: 'include' });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
   const providers = parseProviders(doc);
-  await chrome.storage.local.set({ [key]: { t: Date.now(), providers } });
+  await chrome.storage.local.set({ [cacheKey(id)]: { t: Date.now(), providers } });
   return providers;
 }
 
-// Fetches availability for every card not yet loaded. Stops while the extension is switched off.
-async function loadAll() {
-  if (state.loading) return;
-  state.loading = true;
-  for (const card of state.cards) {
-    if (!state.enabled) break;
-    if (card.loaded) continue;
+// providers = null means the fetch failed; the card then stays visible.
+function markLoaded(card, providers) {
+  card.providers = providers;
+  card.loaded = true;
+  state.done++;
+  for (const names of Object.values(providers || {})) names.forEach((n) => state.platforms.add(n));
+}
+
+// Resolves every queued card that has a fresh cache entry, with one storage read and one filter pass.
+async function resolveFromCache() {
+  const stored = await chrome.storage.local.get(queue.map((c) => cacheKey(c.id)));
+  queue = queue.filter((card) => {
+    const entry = stored[cacheKey(card.id)];
+    if (!isFresh(entry)) return true;
+    markLoaded(card, entry.providers);
+    return false;
+  });
+  applyFilter();
+}
+
+async function worker() {
+  while (state.enabled && queue.length) {
+    const card = queue.shift();
+    if (pausedUntil > Date.now()) await sleep(pausedUntil - Date.now());
     try {
-      card.providers = await getProviders(card.id);
-      for (const names of Object.values(card.providers)) names.forEach((n) => state.platforms.add(n));
+      markLoaded(card, await fetchProviders(card.id));
     } catch (e) {
       console.warn('[fa-filter] film', card.id, e.message);
-      if (String(e.message).includes('HTTP 429')) await sleep(10000); // back off if rate limited
+      if (String(e.message).includes('HTTP 429')) pausedUntil = Date.now() + BACKOFF_MS;
+      markLoaded(card, null);
     }
-    card.loaded = true;
-    state.done++;
     applyFilter();
-    await sleep(DELAY_MS);
+    await sleep(MIN_DELAY_MS + Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS));
   }
-  state.loading = false;
+}
+
+// Starts WORKERS workers on the shared queue. Safe to call again: it resumes after being switched off.
+async function loadAll() {
+  if (running || !state.enabled) return;
+  running = true;
+  await resolveFromCache();
+  await Promise.all(Array.from({ length: WORKERS }, worker));
+  running = false;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -117,7 +145,6 @@ function applyFilter() {
     card.el.classList.toggle('fafx-hidden', !matches(card));
     card.el.classList.toggle('fafx-pending', filtering && !card.loaded); // dimmed until its availability is known
   }
-  chrome.storage.sync.set(settings());
 }
 
 // ---- popup messaging -----------------------------------------------------
@@ -130,7 +157,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     state.selected = new Set(msg.selected);
     state.types = new Set(msg.types);
     applyFilter();
-    if (state.enabled) loadAll();
+    chrome.storage.sync.set(settings());
+    loadAll();
   }
   reply({
     ...settings(),
@@ -154,6 +182,7 @@ async function main() {
   // Saved platforms must show up as options even before they are seen.
   state.selected.forEach((p) => state.platforms.add(p));
 
+  queue = [...state.cards];
   applyFilter();
   loadAll();
 }

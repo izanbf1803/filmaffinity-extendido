@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "FilmAffinity Advanced Filters",
+  "name": "FilmAffinity Filtros",
   "version": "0.1.0",
   "description": "Filter FilmAffinity lists by streaming platform.",
   "permissions": ["storage"],
