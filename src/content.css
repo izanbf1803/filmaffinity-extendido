@@ -1,1 +1,2 @@
 .fafx-hidden { display: none !important; }
+.fafx-pending { opacity: 0.45; transition: opacity 0.2s; }

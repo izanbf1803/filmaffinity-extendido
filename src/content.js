@@ -99,7 +99,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function matches(card) {
   if (!state.enabled || !state.platformFilter || state.selected.size === 0) return true;
-  if (!card.providers) return false;
+  if (!card.providers) return true; // not loaded yet (or failed): keep visible rather than hide unknowns
   const types = state.types.size ? [...state.types] : Object.keys(card.providers);
   return types.some((t) => (card.providers[t] || []).some((p) => state.selected.has(p)));
 }
@@ -112,7 +112,11 @@ const settings = () => ({
 });
 
 function applyFilter() {
-  for (const card of state.cards) card.el.classList.toggle('fafx-hidden', !matches(card));
+  const filtering = state.enabled && state.platformFilter && state.selected.size > 0;
+  for (const card of state.cards) {
+    card.el.classList.toggle('fafx-hidden', !matches(card));
+    card.el.classList.toggle('fafx-pending', filtering && !card.loaded); // dimmed until its availability is known
+  }
   chrome.storage.sync.set(settings());
 }
 
