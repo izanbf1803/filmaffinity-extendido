@@ -206,6 +206,9 @@ function applyFilter() {
   }
 }
 
+// Tells the background script to colour the toolbar icon (blue = enabled, grey = disabled) for this tab.
+const reportIcon = () => chrome.runtime.sendMessage({ type: 'icon', enabled: state.enabled }).catch(() => {});
+
 // Saving is debounced: typing numbers in the popup would otherwise exceed chrome.storage.sync's write limits.
 let saveTimer;
 const saveSoon = () => {
@@ -220,6 +223,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg.type === 'set') {
     applySettings(msg);
     applyFilter();
+    reportIcon();
     saveSoon();
     loadAll();
   }
@@ -247,6 +251,7 @@ async function main() {
 
   queue = [...state.cards];
   applyFilter();
+  reportIcon();
   loadAll();
 }
 

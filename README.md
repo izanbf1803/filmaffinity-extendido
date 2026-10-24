@@ -62,6 +62,7 @@ Go to `chrome://extensions` and click the reload icon on the extension card, the
 manifest.json      Manifest V3 definition
 src/content.js     card detection, film page fetching/parsing, filtering
 src/content.css    hidden-card style
+src/background.js  draws the toolbar icon (blue = enabled, dark grey = disabled)
 src/popup/        filter panel (popup.html/js, Tailwind input.css -> tailwind.css)
 package.json       Tailwind build scripts (dev only)
 tailwind.config.js

@@ -3,13 +3,26 @@
   "name": "FilmAffinity Filtros",
   "version": "0.1.0",
   "description": "Filter FilmAffinity lists by streaming platform.",
-  "permissions": ["storage"],
-  "action": { "default_popup": "src/popup/popup.html" },
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html"
+  },
   "content_scripts": [
     {
-      "matches": ["https://www.filmaffinity.com/*"],
-      "js": ["src/content.js"],
-      "css": ["src/content.css"]
+      "matches": [
+        "https://www.filmaffinity.com/*"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "css": [
+        "src/content.css"
+      ]
     }
-  ]
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  }
 }

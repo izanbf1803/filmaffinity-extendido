@@ -54,7 +54,7 @@ function switchHtml(id, on, label, disabled = false) {
   return `
     <button role="switch" aria-checked="${on}" aria-label="${label}" data-switch="${id}" ${disabled ? 'disabled' : ''}
       class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors
-             ${on ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-slate-600'} ${disabled ? 'opacity-40' : 'cursor-pointer'}">
+             ${on ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'} ${disabled ? 'opacity-40' : 'cursor-pointer'}">
       <span class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-4' : 'translate-x-0.5'}"></span>
     </button>`;
 }
@@ -66,7 +66,9 @@ function rowHtml(id, on, label, disabled) {
     </div>`;
 }
 
-const card = (inner) => `<section class="mb-3 break-inside-avoid rounded-xl bg-white dark:bg-slate-800 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 p-3">${inner}</section>`;
+// Cards of switched-off filters get a darker grey background.
+const card = (inner, disabled = false) => `<section class="mb-3 break-inside-avoid rounded-xl p-3 shadow-sm ring-1 transition-colors
+  ${disabled ? 'bg-slate-200 ring-slate-300 dark:bg-slate-950 dark:ring-slate-800' : 'bg-white ring-slate-200 dark:bg-slate-800 dark:ring-slate-700'}">${inner}</section>`;
 const title = (t) => `<h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">${t}</h3>`;
 
 const norm = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -81,6 +83,7 @@ function listItemsHtml(l) {
 
 function listCardHtml(kind) {
   const l = LISTS[kind];
+  const disabled = !s.enabled || !s[l.filter];
   return card(`
     <div class="flex items-center justify-between">
       ${title(l.title)}${switchHtml(l.filter, s[l.filter], 'Filtrar por ' + l.title.toLowerCase(), !s.enabled)}
@@ -88,8 +91,8 @@ function listCardHtml(kind) {
     ${l.hint ? `<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">${l.hint}</p>` : ''}
     <input id="search-${kind}" data-kind="${kind}" type="search" placeholder="${l.placeholder}" value="${l.query.replace(/"/g, '&quot;')}"
       class="mt-2 w-full rounded-lg border-0 bg-slate-100 px-3 py-1.5 text-sm placeholder-slate-400 outline-none
-             ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:ring-slate-600">
-    <div id="list-${kind}" class="mt-1 max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60">${listItemsHtml(l)}</div>`);
+             ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:ring-slate-600">
+    <div id="list-${kind}" class="mt-1 max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60">${listItemsHtml(l)}</div>`, disabled);
 }
 
 // A filter card with an on/off switch in its header, followed by `body`.
@@ -98,7 +101,7 @@ function filterCard(filter, heading, body, off) {
     <div class="flex items-center justify-between">
       ${title(heading)}${switchHtml(filter, s[filter], 'Filtrar por ' + heading.toLowerCase(), off)}
     </div>
-    ${body}`);
+    ${body}`, off || !s[filter]);
 }
 
 function numberInput(key, label, off) {
@@ -107,7 +110,7 @@ function numberInput(key, label, off) {
     <label class="flex flex-1 flex-col gap-1 text-xs text-slate-500 dark:text-slate-400 ${disabled ? 'opacity-50' : ''}">${label}
       <input id="num-${key}" data-num="${key}" type="number" min="0" value="${s[key] ?? ''}" ${disabled ? 'disabled' : ''}
         class="w-full rounded-lg border-0 bg-slate-100 px-3 py-1.5 text-sm text-slate-800 outline-none ring-1 ring-slate-200
-               focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-slate-100 dark:ring-slate-600">
+               focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 dark:ring-slate-600">
     </label>`;
 }
 const FILTER_OF = { yearFrom: 'yearFilter', yearTo: 'yearFilter', maxDuration: 'durationFilter' };
@@ -134,14 +137,14 @@ function render() {
 
   $('panel').innerHTML = `
     <div class="p-3 space-y-3">
-      <header class="flex items-center justify-between rounded-xl bg-indigo-500 px-4 py-3 text-white shadow">
+      <header class="flex items-center justify-between rounded-xl px-4 py-3 text-white shadow transition-colors ${off ? 'bg-slate-500 dark:bg-slate-700' : 'bg-blue-600'}">
         <div>
           <div class="font-semibold">FilmAffinity Filtros</div>
-          <div class="text-xs text-indigo-100">${off ? 'Desactivado' : 'Activado'}</div>
+          <div class="text-xs ${off ? 'text-slate-200' : 'text-blue-100'}">${off ? 'Desactivado' : 'Activado'}</div>
         </div>
         <button role="switch" aria-checked="${!off}" aria-label="Activar extensión" data-switch="enabled"
-          class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${off ? 'bg-indigo-300' : 'bg-white/90'}">
-          <span class="inline-block h-5 w-5 rounded-full shadow transition-transform ${off ? 'translate-x-0.5 bg-white' : 'translate-x-5 bg-indigo-500'}"></span>
+          class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${off ? 'bg-slate-400 dark:bg-slate-500' : 'bg-white/90'}">
+          <span class="inline-block h-5 w-5 rounded-full shadow transition-transform ${off ? 'translate-x-0.5 bg-white' : 'translate-x-5 bg-blue-600'}"></span>
         </button>
       </header>
 
@@ -152,7 +155,7 @@ function render() {
         ${title('Tipo de disponibilidad')}
         <div class="mt-1 divide-y divide-slate-100 dark:divide-slate-700/60">
           ${TYPES.map((t) => rowHtml('t:' + t, s.types.includes(t), t, filterOff)).join('')}
-        </div>`)}
+        </div>`, filterOff)}
 
       ${listCardHtml('genre')}
 
@@ -188,7 +191,7 @@ function renderStatus() {
   el.innerHTML = `
     <div class="mb-1 flex justify-between"><span>Disponibilidad ${s.done}/${s.total}</span><span>Datos: JustWatch</span></div>
     <div class="h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-      <div class="h-full rounded-full bg-indigo-500 transition-all" style="width:${pct}%"></div>
+      <div class="h-full rounded-full bg-blue-500 transition-all" style="width:${pct}%"></div>
     </div>`;
 }
 
