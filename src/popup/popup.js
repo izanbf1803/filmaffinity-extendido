@@ -1,11 +1,13 @@
 // Popup UI: talks to the content script of the active tab (see "popup messaging" in src/content.js).
 // Styling uses Tailwind classes; run `npm run build:css` after adding new classes.
 const TYPES = ['Suscripción', 'Alquiler', 'Compra'];
+const KINDS = ['Película', 'Serie', 'Miniserie'];
 let tabId;
 let s = null;          // last state received from the page
 let renderedKey = '';
 const DEFAULTS = { // same as src/content.js
   enabled: false, platformFilter: false, selected: [], types: [], genreFilter: false, selectedGenres: [],
+  kindFilter: false, selectedKinds: [],
 };
 
 // The two searchable lists. `query` is the search text, kept across re-renders.
@@ -98,6 +100,14 @@ function render() {
 
       ${listCardHtml('genre')}
 
+      ${card(`
+        <div class="flex items-center justify-between">
+          ${title('Formato')}${switchHtml('kindFilter', s.kindFilter, 'Filtrar por formato', off)}
+        </div>
+        <div class="mt-1 divide-y divide-slate-100 dark:divide-slate-700/60">
+          ${KINDS.map((k) => rowHtml('k:' + k, s.selectedKinds.includes(k), k, off || !s.kindFilter)).join('')}
+        </div>`)}
+
       <button data-action="reset" ${isDefault ? 'disabled' : ''}
         class="w-full rounded-lg px-3 py-2 text-sm font-medium ring-1 ring-slate-300 dark:ring-slate-600 transition
                ${isDefault ? 'opacity-40' : 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800'}">
@@ -135,8 +145,9 @@ $('panel').addEventListener('click', (e) => {
   if (!btn || btn.disabled) return;
   const id = btn.dataset.switch;
   if (id === 'enabled') update({ enabled: !s.enabled });
-  else if (id === 'platformFilter' || id === 'genreFilter') update({ [id]: !s[id] });
+  else if (id === 'platformFilter' || id === 'genreFilter' || id === 'kindFilter') update({ [id]: !s[id] });
   else if (id.startsWith('t:')) update({ types: flip(s.types, id.slice(2)) });
+  else if (id.startsWith('k:')) update({ selectedKinds: flip(s.selectedKinds, id.slice(2)) });
   else {
     const l = Object.values(LISTS).find((x) => id.startsWith(x.prefix));
     if (l) update({ [l.sel]: flip(s[l.sel], id.slice(l.prefix.length)) });

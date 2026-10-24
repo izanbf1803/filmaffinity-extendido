@@ -1,4 +1,4 @@
-// FilmAffinity Filtros: filter list items by streaming platform and genre.
+// FilmAffinity Filtros: filter list items by streaming platform, genre and format (film/series).
 // Flow: find film cards -> fetch each film page (throttled, cached) -> parse "Disponible en" + genres -> filter.
 
 const TTL_MS = 24 * 3600 * 1000;
@@ -8,7 +8,7 @@ const MAX_DELAY_MS = 2000;
 const BACKOFF_MS = 10000; // pause all workers after an HTTP 429
 
 const state = {
-  cards: [],            // { id, el, data: { providers: {type: [platform]}, genres: [genre] } | null }
+  cards: [],            // { id, el, data: { providers: {type: [platform]}, genres: [genre], kind } | null }
   platforms: new Set(), // platforms seen so far
   selected: new Set(),  // platforms the user ticked
   types: new Set(),     // empty = any type of availability counts
@@ -17,6 +17,8 @@ const state = {
   genres: new Set(),    // genres seen so far
   selectedGenres: new Set(), // a film matches if it has ANY of these
   genreFilter: false,   // on/off for the genre filter
+  kindFilter: false,    // on/off for the format filter (Película / Serie / Miniserie)
+  selectedKinds: new Set(), // a film matches if its format is ANY of these
   done: 0,
 };
 
@@ -43,9 +45,22 @@ function parseProviders(doc) {
   return result;
 }
 
-// Returns the film's genres, e.g. ['Ciencia ficción', 'Thriller'] (topics like "Distopía" are not genres).
+// Returns the raw genre labels, e.g. ['Ciencia ficción', 'Thriller'] (topics like "Distopía" are not genres).
+// FilmAffinity also lists the format here ("Serie de TV"); withKind() separates it out.
 function parseGenres(doc) {
   return [...doc.querySelectorAll('dd.card-genres span[itemprop="genre"]')].map((el) => el.textContent.trim());
+}
+
+// Splits the format out of the genre labels: 'Película' unless a "Serie..." / "Miniserie..." label is present.
+// The cache keeps the raw labels, so this is applied after reading it.
+function withKind({ providers, genres }) {
+  const kindOf = (g) => (/^miniserie/i.test(g) ? 'Miniserie' : /^serie/i.test(g) ? 'Serie' : null);
+  const kinds = genres.map(kindOf).filter(Boolean);
+  return {
+    providers,
+    genres: genres.filter((g) => !kindOf(g)),
+    kind: kinds.includes('Miniserie') ? 'Miniserie' : kinds[0] || 'Película',
+  };
 }
 
 // "Amazon Prime Video with Ads" -> "Amazon Prime Video"
@@ -86,7 +101,8 @@ async function fetchFilm(id) {
 }
 
 // data = null means the fetch failed; the card then stays visible.
-function markLoaded(card, data) {
+function markLoaded(card, raw) {
+  const data = raw && withKind(raw);
   card.data = data;
   card.loaded = true;
   state.done++;
@@ -137,16 +153,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const platformActive = () => state.platformFilter && state.selected.size > 0;
 const genreActive = () => state.genreFilter && state.selectedGenres.size > 0;
+const kindActive = () => state.kindFilter && state.selectedKinds.size > 0;
 
 // A film is shown when it passes every active filter.
 function matches(card) {
   if (!state.enabled || !card.data) return true; // not loaded yet (or failed): keep visible rather than hide unknowns
-  const { providers, genres } = card.data;
+  const { providers, genres, kind } = card.data;
   if (platformActive()) {
     const types = state.types.size ? [...state.types] : Object.keys(providers);
     if (!types.some((t) => (providers[t] || []).some((p) => state.selected.has(p)))) return false;
   }
   if (genreActive() && !genres.some((g) => state.selectedGenres.has(g))) return false;
+  if (kindActive() && !state.selectedKinds.has(kind)) return false;
   return true;
 }
 
@@ -157,10 +175,12 @@ const settings = () => ({
   types: [...state.types],
   genreFilter: state.genreFilter,
   selectedGenres: [...state.selectedGenres],
+  kindFilter: state.kindFilter,
+  selectedKinds: [...state.selectedKinds],
 });
 
 function applyFilter() {
-  const filtering = state.enabled && (platformActive() || genreActive());
+  const filtering = state.enabled && (platformActive() || genreActive() || kindActive());
   for (const card of state.cards) {
     card.el.classList.toggle('fafx-hidden', !matches(card));
     card.el.classList.toggle('fafx-pending', filtering && !card.loaded); // dimmed until its data is known
@@ -178,6 +198,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     state.types = new Set(msg.types);
     state.genreFilter = msg.genreFilter;
     state.selectedGenres = new Set(msg.selectedGenres);
+    state.kindFilter = msg.kindFilter;
+    state.selectedKinds = new Set(msg.selectedKinds);
     applyFilter();
     chrome.storage.sync.set(settings());
     loadAll();
@@ -197,13 +219,15 @@ async function main() {
   if (/\/film\d+\.html/.test(location.pathname)) return; // single film page
   state.cards = findCards();
   if (state.cards.length < 2) return; // not a list page
-  const saved = await chrome.storage.sync.get(['enabled', 'platformFilter', 'selected', 'types', 'genreFilter', 'selectedGenres']);
+  const saved = await chrome.storage.sync.get(['enabled', 'platformFilter', 'selected', 'types', 'genreFilter', 'selectedGenres', 'kindFilter', 'selectedKinds']);
   if (saved.enabled !== undefined) state.enabled = saved.enabled;
   if (saved.platformFilter !== undefined) state.platformFilter = saved.platformFilter;
   if (saved.selected) state.selected = new Set(saved.selected);
   if (saved.types) state.types = new Set(saved.types);
   if (saved.genreFilter !== undefined) state.genreFilter = saved.genreFilter;
   if (saved.selectedGenres) state.selectedGenres = new Set(saved.selectedGenres);
+  if (saved.kindFilter !== undefined) state.kindFilter = saved.kindFilter;
+  if (saved.selectedKinds) state.selectedKinds = new Set(saved.selectedKinds);
   // Saved platforms and genres must show up as options even before they are seen.
   state.selected.forEach((p) => state.platforms.add(p));
   state.selectedGenres.forEach((g) => state.genres.add(g));

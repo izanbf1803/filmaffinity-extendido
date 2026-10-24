@@ -24,7 +24,8 @@ No API key is needed. The popup's Tailwind CSS is pre-built and committed (`src/
 3. Everything is off by default, and your settings are remembered between visits. The **Restablecer filtros** button at the bottom returns everything to the default (off, nothing selected). The top switch turns the whole extension on or off (while off, nothing is hidden and no film pages are fetched).
 4. **Plataformas** has its own on/off switch, with one switch per platform. Only films available on at least one switched-on platform stay visible; with none switched on, everything is shown. Turning the filter off keeps your selection.
 5. **Géneros** has the same kind of switch, search box and per-genre switches. A film is shown if it has **any** of the switched-on genres. When both filters are active, a film must pass both.
-6. **Tipo de disponibilidad** chooses which kind of availability counts: Suscripción, Alquiler or Compra. With none switched on, any type counts.
+6. **Formato** filters by Película / Serie / Miniserie (any of the switched-on ones). FilmAffinity lists "Serie de TV" among the genres; the extension takes it out of the genre list and uses it here.
+7. **Tipo de disponibilidad** chooses which kind of availability counts: Suscripción, Alquiler or Compra. With none switched on, any type counts.
 
 Your choices are remembered between visits. Availability data is cached for 1 day, so reopening a list is fast.
 
