@@ -7,7 +7,7 @@ A Chrome extension that adds a filter panel (opened from the toolbar icon) for y
 - Google Chrome (or any Chromium browser with Manifest V3 support: Edge, Brave, ...).
 - A FilmAffinity account with at least one list.
 
-There is no build step, no dependencies and no API key.
+No API key is needed. The popup's Tailwind CSS is pre-built and committed (`src/popup/tailwind.css`), so you can load the extension without installing anything. Node is only needed if you change the popup's styles.
 
 ## Setup
 
@@ -21,10 +21,22 @@ There is no build step, no dependencies and no API key.
 
 1. Log in to filmaffinity.com and open one of your lists.
 2. Click the extension icon in the toolbar (pin it from the puzzle-piece menu). The popup lists the platforms found so far; it fills in as the extension reads each film's page (about 2-3 films per second), with a `done/total` counter.
-3. Tick the platforms you want. Only films available on at least one ticked platform stay visible. With no platform ticked, everything is shown.
-4. Use the **Tipo** checkboxes to choose which kind of availability counts: Suscripción (default), Alquiler or Compra.
+3. Everything is off by default, and your settings are remembered between visits. The **Restablecer filtros** button at the bottom returns everything to the default (off, nothing selected). The top switch turns the whole extension on or off (while off, nothing is hidden and no film pages are fetched).
+4. **Plataformas** has its own on/off switch, with one switch per platform. Only films available on at least one switched-on platform stay visible; with none switched on, everything is shown. Turning the filter off keeps your selection.
+5. **Tipo de disponibilidad** chooses which kind of availability counts: Suscripción, Alquiler or Compra. With none switched on, any type counts.
 
 Your choices are remembered between visits. Availability data is cached for 1 day, so reopening a list is fast.
+
+## Changing the popup styles
+
+The popup uses [Tailwind CSS](https://tailwindcss.com) v3. Chrome's extension security policy blocks the Tailwind CDN script, so the CSS is compiled ahead of time:
+
+```
+npm install
+npm run build:css   # or: npm run watch:css
+```
+
+Commit the regenerated `src/popup/tailwind.css`. Run it again whenever you add a Tailwind class in `popup.html` or `popup.js`.
 
 ## Updating after code changes
 
@@ -46,7 +58,9 @@ Go to `chrome://extensions` and click the reload icon on the extension card, the
 manifest.json      Manifest V3 definition
 src/content.js     card detection, film page fetching/parsing, filtering
 src/content.css    hidden-card style
-src/popup/        filter panel shown when clicking the extension icon
+src/popup/        filter panel (popup.html/js, Tailwind input.css -> tailwind.css)
+package.json       Tailwind build scripts (dev only)
+tailwind.config.js
 PROJECT.md         objectives, research and roadmap
 ```
 

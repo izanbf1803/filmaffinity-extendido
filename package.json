@@ -1,0 +1,11 @@
+{
+  "name": "extension-filmaffinity",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i src/popup/input.css -o src/popup/tailwind.css --minify",
+    "watch:css": "tailwindcss -i src/popup/input.css -o src/popup/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}

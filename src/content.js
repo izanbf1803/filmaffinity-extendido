@@ -8,8 +8,11 @@ const state = {
   cards: [],            // { id, el, providers: {type: [platform]} | null }
   platforms: new Set(), // platforms seen so far
   selected: new Set(),  // platforms the user ticked
-  types: new Set(['Suscripción']),
+  types: new Set(),     // empty = any type of availability counts
+  enabled: false,       // master switch (everything is off by default)
+  platformFilter: false, // on/off for the platform filter (selection is kept while off)
   done: 0,
+  loading: false,
 };
 
 // ---- parsing -------------------------------------------------------------
@@ -68,8 +71,13 @@ async function getProviders(id) {
   return providers;
 }
 
+// Fetches availability for every card not yet loaded. Stops while the extension is switched off.
 async function loadAll() {
+  if (state.loading) return;
+  state.loading = true;
   for (const card of state.cards) {
+    if (!state.enabled) break;
+    if (card.loaded) continue;
     try {
       card.providers = await getProviders(card.id);
       for (const names of Object.values(card.providers)) names.forEach((n) => state.platforms.add(n));
@@ -77,10 +85,12 @@ async function loadAll() {
       console.warn('[fa-filter] film', card.id, e.message);
       if (String(e.message).includes('HTTP 429')) await sleep(10000); // back off if rate limited
     }
+    card.loaded = true;
     state.done++;
     applyFilter();
     await sleep(DELAY_MS);
   }
+  state.loading = false;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -88,14 +98,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // ---- filtering -----------------------------------------------------------
 
 function matches(card) {
-  if (state.selected.size === 0) return true;
+  if (!state.enabled || !state.platformFilter || state.selected.size === 0) return true;
   if (!card.providers) return false;
-  return [...state.types].some((t) => (card.providers[t] || []).some((p) => state.selected.has(p)));
+  const types = state.types.size ? [...state.types] : Object.keys(card.providers);
+  return types.some((t) => (card.providers[t] || []).some((p) => state.selected.has(p)));
 }
+
+const settings = () => ({
+  enabled: state.enabled,
+  platformFilter: state.platformFilter,
+  selected: [...state.selected],
+  types: [...state.types],
+});
 
 function applyFilter() {
   for (const card of state.cards) card.el.classList.toggle('fafx-hidden', !matches(card));
-  chrome.storage.sync.set({ selected: [...state.selected], types: [...state.types] });
+  chrome.storage.sync.set(settings());
 }
 
 // ---- popup messaging -----------------------------------------------------
@@ -103,14 +121,16 @@ function applyFilter() {
 // The filter UI lives in the extension popup (src/popup/); it polls with 'get' and updates with 'set'.
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg.type === 'set') {
+    state.enabled = msg.enabled;
+    state.platformFilter = msg.platformFilter;
     state.selected = new Set(msg.selected);
     state.types = new Set(msg.types);
     applyFilter();
+    if (state.enabled) loadAll();
   }
   reply({
+    ...settings(),
     platforms: [...state.platforms].sort(),
-    selected: [...state.selected],
-    types: [...state.types],
     done: state.done,
     total: state.cards.length,
   });
@@ -122,7 +142,9 @@ async function main() {
   if (/\/film\d+\.html/.test(location.pathname)) return; // single film page
   state.cards = findCards();
   if (state.cards.length < 2) return; // not a list page
-  const saved = await chrome.storage.sync.get(['selected', 'types']);
+  const saved = await chrome.storage.sync.get(['enabled', 'platformFilter', 'selected', 'types']);
+  if (saved.enabled !== undefined) state.enabled = saved.enabled;
+  if (saved.platformFilter !== undefined) state.platformFilter = saved.platformFilter;
   if (saved.selected) state.selected = new Set(saved.selected);
   if (saved.types) state.types = new Set(saved.types);
   // Saved platforms must show up as options even before they are seen.

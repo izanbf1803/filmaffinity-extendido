@@ -1,12 +1,10 @@
 <!doctype html>
 <meta charset="utf-8">
-<link rel="stylesheet" href="popup.css">
-<div id="msg">Abre una lista de FilmAffinity.</div>
-<div id="panel" hidden>
-  <h4>Tipo</h4>
-  <div id="types"></div>
-  <h4>Plataformas</h4>
-  <div id="platforms"></div>
-  <div id="status"></div>
-</div>
-<script src="popup.js"></script>
+<link rel="stylesheet" href="tailwind.css">
+<body class="w-80 bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 text-sm antialiased">
+  <div id="msg" class="p-6 text-center text-slate-500 dark:text-slate-400">
+    Abre una lista de FilmAffinity para usar los filtros.
+  </div>
+  <div id="panel" hidden></div>
+  <script src="popup.js"></script>
+</body>
