@@ -23,7 +23,8 @@ No API key is needed. The popup's Tailwind CSS is pre-built and committed (`src/
 2. Click the extension icon in the toolbar (pin it from the puzzle-piece menu). The popup lists the platforms found so far; it fills in as the extension reads each film's page (4 parallel workers, about 3 films per second when not cached; cached films resolve instantly), with a `done/total` counter.
 3. Everything is off by default, and your settings are remembered between visits. The **Restablecer filtros** button at the bottom returns everything to the default (off, nothing selected). The top switch turns the whole extension on or off (while off, nothing is hidden and no film pages are fetched).
 4. **Plataformas** has its own on/off switch, with one switch per platform. Only films available on at least one switched-on platform stay visible; with none switched on, everything is shown. Turning the filter off keeps your selection.
-5. **Tipo de disponibilidad** chooses which kind of availability counts: Suscripción, Alquiler or Compra. With none switched on, any type counts.
+5. **Géneros** has the same kind of switch, search box and per-genre switches. A film is shown if it has **any** of the switched-on genres. When both filters are active, a film must pass both.
+6. **Tipo de disponibilidad** chooses which kind of availability counts: Suscripción, Alquiler or Compra. With none switched on, any type counts.
 
 Your choices are remembered between visits. Availability data is cached for 1 day, so reopening a list is fast.
 

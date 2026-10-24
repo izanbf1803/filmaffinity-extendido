@@ -1,5 +1,5 @@
-// FilmAffinity Filtros: filter list items by streaming platform.
-// Flow: find film cards -> fetch each film page (throttled, cached) -> parse "Disponible en" -> filter.
+// FilmAffinity Filtros: filter list items by streaming platform and genre.
+// Flow: find film cards -> fetch each film page (throttled, cached) -> parse "Disponible en" + genres -> filter.
 
 const TTL_MS = 24 * 3600 * 1000;
 const WORKERS = 4;
@@ -8,12 +8,15 @@ const MAX_DELAY_MS = 2000;
 const BACKOFF_MS = 10000; // pause all workers after an HTTP 429
 
 const state = {
-  cards: [],            // { id, el, providers: {type: [platform]} | null }
+  cards: [],            // { id, el, data: { providers: {type: [platform]}, genres: [genre] } | null }
   platforms: new Set(), // platforms seen so far
   selected: new Set(),  // platforms the user ticked
   types: new Set(),     // empty = any type of availability counts
   enabled: false,       // master switch (everything is off by default)
   platformFilter: false, // on/off for the platform filter (selection is kept while off)
+  genres: new Set(),    // genres seen so far
+  selectedGenres: new Set(), // a film matches if it has ANY of these
+  genreFilter: false,   // on/off for the genre filter
   done: 0,
 };
 
@@ -40,6 +43,11 @@ function parseProviders(doc) {
   return result;
 }
 
+// Returns the film's genres, e.g. ['Ciencia ficción', 'Thriller'] (topics like "Distopía" are not genres).
+function parseGenres(doc) {
+  return [...doc.querySelectorAll('dd.card-genres span[itemprop="genre"]')].map((el) => el.textContent.trim());
+}
+
 // "Amazon Prime Video with Ads" -> "Amazon Prime Video"
 const normalize = (name) => name.replace(/ with Ads$/i, '').trim();
 
@@ -57,7 +65,7 @@ function findCards() {
     const m = a.getAttribute('href').match(/\/film(\d+)\.html/);
     if (!m || byId.has(m[1])) continue;
     const el = a.closest(LIST_ROW) || a.closest(FALLBACK_CARD) || a.parentElement;
-    byId.set(m[1], { id: m[1], el, providers: null });
+    byId.set(m[1], { id: m[1], el, data: null });
   }
   return [...byId.values()];
 }
@@ -65,23 +73,25 @@ function findCards() {
 // ---- fetching + cache ----------------------------------------------------
 
 const cacheKey = (id) => 'fa:' + id;
-const isFresh = (entry) => entry && Date.now() - entry.t < TTL_MS;
+// Entries cached before genres were added have no `genres` and count as stale.
+const isFresh = (entry) => entry && Array.isArray(entry.genres) && Date.now() - entry.t < TTL_MS;
 
-async function fetchProviders(id) {
+async function fetchFilm(id) {
   const res = await fetch(`/${location.pathname.split('/')[1]}/film${id}.html`, { credentials: 'include' });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
-  const providers = parseProviders(doc);
-  await chrome.storage.local.set({ [cacheKey(id)]: { t: Date.now(), providers } });
-  return providers;
+  const data = { providers: parseProviders(doc), genres: parseGenres(doc) };
+  await chrome.storage.local.set({ [cacheKey(id)]: { t: Date.now(), ...data } });
+  return data;
 }
 
-// providers = null means the fetch failed; the card then stays visible.
-function markLoaded(card, providers) {
-  card.providers = providers;
+// data = null means the fetch failed; the card then stays visible.
+function markLoaded(card, data) {
+  card.data = data;
   card.loaded = true;
   state.done++;
-  for (const names of Object.values(providers || {})) names.forEach((n) => state.platforms.add(n));
+  for (const names of Object.values(data?.providers || {})) names.forEach((n) => state.platforms.add(n));
+  (data?.genres || []).forEach((g) => state.genres.add(g));
 }
 
 // Resolves every queued card that has a fresh cache entry, with one storage read and one filter pass.
@@ -90,7 +100,7 @@ async function resolveFromCache() {
   queue = queue.filter((card) => {
     const entry = stored[cacheKey(card.id)];
     if (!isFresh(entry)) return true;
-    markLoaded(card, entry.providers);
+    markLoaded(card, { providers: entry.providers, genres: entry.genres });
     return false;
   });
   applyFilter();
@@ -101,7 +111,7 @@ async function worker() {
     const card = queue.shift();
     if (pausedUntil > Date.now()) await sleep(pausedUntil - Date.now());
     try {
-      markLoaded(card, await fetchProviders(card.id));
+      markLoaded(card, await fetchFilm(card.id));
     } catch (e) {
       console.warn('[fa-filter] film', card.id, e.message);
       if (String(e.message).includes('HTTP 429')) pausedUntil = Date.now() + BACKOFF_MS;
@@ -125,11 +135,19 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---- filtering -----------------------------------------------------------
 
+const platformActive = () => state.platformFilter && state.selected.size > 0;
+const genreActive = () => state.genreFilter && state.selectedGenres.size > 0;
+
+// A film is shown when it passes every active filter.
 function matches(card) {
-  if (!state.enabled || !state.platformFilter || state.selected.size === 0) return true;
-  if (!card.providers) return true; // not loaded yet (or failed): keep visible rather than hide unknowns
-  const types = state.types.size ? [...state.types] : Object.keys(card.providers);
-  return types.some((t) => (card.providers[t] || []).some((p) => state.selected.has(p)));
+  if (!state.enabled || !card.data) return true; // not loaded yet (or failed): keep visible rather than hide unknowns
+  const { providers, genres } = card.data;
+  if (platformActive()) {
+    const types = state.types.size ? [...state.types] : Object.keys(providers);
+    if (!types.some((t) => (providers[t] || []).some((p) => state.selected.has(p)))) return false;
+  }
+  if (genreActive() && !genres.some((g) => state.selectedGenres.has(g))) return false;
+  return true;
 }
 
 const settings = () => ({
@@ -137,13 +155,15 @@ const settings = () => ({
   platformFilter: state.platformFilter,
   selected: [...state.selected],
   types: [...state.types],
+  genreFilter: state.genreFilter,
+  selectedGenres: [...state.selectedGenres],
 });
 
 function applyFilter() {
-  const filtering = state.enabled && state.platformFilter && state.selected.size > 0;
+  const filtering = state.enabled && (platformActive() || genreActive());
   for (const card of state.cards) {
     card.el.classList.toggle('fafx-hidden', !matches(card));
-    card.el.classList.toggle('fafx-pending', filtering && !card.loaded); // dimmed until its availability is known
+    card.el.classList.toggle('fafx-pending', filtering && !card.loaded); // dimmed until its data is known
   }
 }
 
@@ -156,6 +176,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     state.platformFilter = msg.platformFilter;
     state.selected = new Set(msg.selected);
     state.types = new Set(msg.types);
+    state.genreFilter = msg.genreFilter;
+    state.selectedGenres = new Set(msg.selectedGenres);
     applyFilter();
     chrome.storage.sync.set(settings());
     loadAll();
@@ -163,6 +185,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   reply({
     ...settings(),
     platforms: [...state.platforms].sort(),
+    genres: [...state.genres].sort(),
     done: state.done,
     total: state.cards.length,
   });
@@ -174,13 +197,16 @@ async function main() {
   if (/\/film\d+\.html/.test(location.pathname)) return; // single film page
   state.cards = findCards();
   if (state.cards.length < 2) return; // not a list page
-  const saved = await chrome.storage.sync.get(['enabled', 'platformFilter', 'selected', 'types']);
+  const saved = await chrome.storage.sync.get(['enabled', 'platformFilter', 'selected', 'types', 'genreFilter', 'selectedGenres']);
   if (saved.enabled !== undefined) state.enabled = saved.enabled;
   if (saved.platformFilter !== undefined) state.platformFilter = saved.platformFilter;
   if (saved.selected) state.selected = new Set(saved.selected);
   if (saved.types) state.types = new Set(saved.types);
-  // Saved platforms must show up as options even before they are seen.
+  if (saved.genreFilter !== undefined) state.genreFilter = saved.genreFilter;
+  if (saved.selectedGenres) state.selectedGenres = new Set(saved.selectedGenres);
+  // Saved platforms and genres must show up as options even before they are seen.
   state.selected.forEach((p) => state.platforms.add(p));
+  state.selectedGenres.forEach((g) => state.genres.add(g));
 
   queue = [...state.cards];
   applyFilter();

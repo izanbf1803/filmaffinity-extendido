@@ -4,8 +4,17 @@ const TYPES = ['Suscripción', 'Alquiler', 'Compra'];
 let tabId;
 let s = null;          // last state received from the page
 let renderedKey = '';
-let query = '';        // platform search text (kept across re-renders)
-const DEFAULTS = { enabled: false, platformFilter: false, selected: [], types: [] }; // same as src/content.js
+const DEFAULTS = { // same as src/content.js
+  enabled: false, platformFilter: false, selected: [], types: [], genreFilter: false, selectedGenres: [],
+};
+
+// The two searchable lists. `query` is the search text, kept across re-renders.
+const LISTS = {
+  platform: { title: 'Plataformas', filter: 'platformFilter', items: 'platforms', sel: 'selected', prefix: 'p:',
+              placeholder: 'Buscar plataforma…', loading: 'Buscando plataformas…', query: '' },
+  genre: { title: 'Géneros', filter: 'genreFilter', items: 'genres', sel: 'selectedGenres', prefix: 'g:',
+           placeholder: 'Buscar género…', loading: 'Buscando géneros…', query: '', hint: 'Basta con que tenga uno de los marcados.' },
+};
 
 const $ = (id) => document.getElementById(id);
 const send = (msg) => chrome.tabs.sendMessage(tabId, msg).catch(() => null); // null: no content script here
@@ -13,7 +22,7 @@ const send = (msg) => chrome.tabs.sendMessage(tabId, msg).catch(() => null); // 
 // Sends the current settings to the page; the page applies them and saves them.
 function update(changes) {
   s = { ...s, ...changes };
-  send({ type: 'set', enabled: s.enabled, platformFilter: s.platformFilter, selected: s.selected, types: s.types });
+  send({ type: 'set', ...Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, s[k]])) });
   render();
 }
 
@@ -40,12 +49,25 @@ const title = (t) => `<h3 class="text-xs font-semibold uppercase tracking-wide t
 
 const norm = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-function platformListHtml() {
-  const filterOff = !s.enabled || !s.platformFilter;
-  if (!s.platforms.length) return `<p class="py-2 text-slate-500 dark:text-slate-400">Buscando plataformas…</p>`;
-  const shown = s.platforms.filter((p) => norm(p).includes(norm(query.trim())));
+function listItemsHtml(l) {
+  const filterOff = !s.enabled || !s[l.filter];
+  if (!s[l.items].length) return `<p class="py-2 text-slate-500 dark:text-slate-400">${l.loading}</p>`;
+  const shown = s[l.items].filter((x) => norm(x).includes(norm(l.query.trim())));
   if (!shown.length) return `<p class="py-2 text-slate-500 dark:text-slate-400">Sin resultados</p>`;
-  return shown.map((p) => rowHtml('p:' + p, s.selected.includes(p), p, filterOff)).join('');
+  return shown.map((x) => rowHtml(l.prefix + x, s[l.sel].includes(x), x, filterOff)).join('');
+}
+
+function listCardHtml(kind) {
+  const l = LISTS[kind];
+  return card(`
+    <div class="flex items-center justify-between">
+      ${title(l.title)}${switchHtml(l.filter, s[l.filter], 'Filtrar por ' + l.title.toLowerCase(), !s.enabled)}
+    </div>
+    ${l.hint ? `<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">${l.hint}</p>` : ''}
+    <input id="search-${kind}" data-kind="${kind}" type="search" placeholder="${l.placeholder}" value="${l.query.replace(/"/g, '&quot;')}"
+      class="mt-2 w-full rounded-lg border-0 bg-slate-100 px-3 py-1.5 text-sm placeholder-slate-400 outline-none
+             ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:ring-slate-600">
+    <div id="list-${kind}" class="mt-1 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60">${listItemsHtml(l)}</div>`);
 }
 
 function render() {
@@ -66,20 +88,15 @@ function render() {
         </button>
       </header>
 
-      ${card(`
-        <div class="flex items-center justify-between">
-          ${title('Plataformas')}${switchHtml('platformFilter', s.platformFilter, 'Filtrar por plataforma', off)}
-        </div>
-        <input id="search" type="search" placeholder="Buscar plataforma…" value="${query.replace(/"/g, '&quot;')}"
-          class="mt-2 w-full rounded-lg border-0 bg-slate-100 px-3 py-1.5 text-sm placeholder-slate-400 outline-none
-                 ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:ring-slate-600">
-        <div id="platform-list" class="mt-1 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60">${platformListHtml()}</div>`)}
+      ${listCardHtml('platform')}
 
       ${card(`
         ${title('Tipo de disponibilidad')}
         <div class="mt-1 divide-y divide-slate-100 dark:divide-slate-700/60">
           ${TYPES.map((t) => rowHtml('t:' + t, s.types.includes(t), t, filterOff)).join('')}
         </div>`)}
+
+      ${listCardHtml('genre')}
 
       <button data-action="reset" ${isDefault ? 'disabled' : ''}
         class="w-full rounded-lg px-3 py-2 text-sm font-medium ring-1 ring-slate-300 dark:ring-slate-600 transition
@@ -105,9 +122,10 @@ function renderStatus() {
 
 // Typing only re-renders the list, so the input keeps focus.
 $('panel').addEventListener('input', (e) => {
-  if (e.target.id !== 'search') return;
-  query = e.target.value;
-  $('platform-list').innerHTML = platformListHtml();
+  const kind = e.target.dataset.kind;
+  if (!kind) return;
+  LISTS[kind].query = e.target.value;
+  $('list-' + kind).innerHTML = listItemsHtml(LISTS[kind]);
 });
 
 // One click handler for every switch (the panel is re-rendered, so delegate from the container).
@@ -117,9 +135,12 @@ $('panel').addEventListener('click', (e) => {
   if (!btn || btn.disabled) return;
   const id = btn.dataset.switch;
   if (id === 'enabled') update({ enabled: !s.enabled });
-  else if (id === 'platformFilter') update({ platformFilter: !s.platformFilter });
-  else if (id.startsWith('p:')) update({ selected: flip(s.selected, id.slice(2)) });
+  else if (id === 'platformFilter' || id === 'genreFilter') update({ [id]: !s[id] });
   else if (id.startsWith('t:')) update({ types: flip(s.types, id.slice(2)) });
+  else {
+    const l = Object.values(LISTS).find((x) => id.startsWith(x.prefix));
+    if (l) update({ [l.sel]: flip(s[l.sel], id.slice(l.prefix.length)) });
+  }
 });
 
 async function poll() {
@@ -129,7 +150,7 @@ async function poll() {
   if (!fresh) return;
   s = fresh;
   // Re-render everything only when something other than progress changed.
-  const key = JSON.stringify([s.enabled, s.platformFilter, s.selected, s.types, s.platforms]);
+  const key = JSON.stringify([...Object.keys(DEFAULTS).map((k) => s[k]), s.platforms, s.genres]);
   if (key !== renderedKey) { renderedKey = key; render(); } else renderStatus();
 }
 
