@@ -1,10 +1,10 @@
-// FilmAffinity Filtros: filter list items by platform, genre, country, format, year and duration.
+// Filmaffinity extendido: filter list items by platform, genre, country, format, year and duration.
 // Flow: find film cards -> fetch each film page (throttled, cached) -> parseFilm() -> filter.
 
 const TTL_MS = 24 * 3600 * 1000;
 const WORKERS = 4;
-const MIN_DELAY_MS = 500; // random pause after each network fetch, per worker
-const MAX_DELAY_MS = 2000;
+const MIN_DELAY_MS = 1000; // random pause after each network fetch, per worker
+const MAX_DELAY_MS = 4000;
 const BACKOFF_MS = 10000; // pause all workers after an HTTP 429
 
 // User settings (saved in chrome.storage.sync, edited from the popup). Everything is off by default.
@@ -63,6 +63,17 @@ function parseProviders(doc) {
 // "Amazon Prime Video with Ads" -> "Amazon Prime Video"
 const normalize = (name) => name.replace(/ with Ads$/i, '').trim();
 
+// Logo URL as the page would load it: lazy-load attributes first, then src, then the first srcset entry.
+// Placeholders (data: URIs, empty gifs) are skipped.
+function iconUrl(img) {
+  const candidates = [
+    img.getAttribute('data-src'), img.getAttribute('data-original'), img.getAttribute('src'),
+    (img.getAttribute('data-srcset') || img.getAttribute('srcset') || '').split(',')[0].trim().split(' ')[0],
+  ];
+  const url = candidates.find((u) => u && !u.startsWith('data:') && !/empty\.gif$/.test(u));
+  return url ? new URL(url, location.origin).href : null;
+}
+
 // Everything the filters need from a film page. Missing values are null so they never hide a film.
 function parseFilm(doc) {
   const text = (sel) => doc.querySelector(sel)?.textContent.trim() || '';
@@ -77,8 +88,13 @@ function parseFilm(doc) {
     .filter((g) => !isSeries(g));
   const kind = labels.some((l) => /^miniserie/i.test(l)) ? 'Miniserie' : labels.some(isSeries) ? 'Serie' : 'Película';
 
+  // Platform logos by name (first one wins when "X" and "X with Ads" share a name after normalizing).
+  const icons = {};
+  for (const img of doc.querySelectorAll('#stream-wrapper img')) icons[normalize(img.alt)] ??= iconUrl(img);
+
   return {
     providers: parseProviders(doc),
+    icons,
     genres,
     kind,
     year: number('dd[itemprop="datePublished"]'),
@@ -110,7 +126,7 @@ function findCards() {
 
 const cacheKey = (id) => 'fa:' + id;
 // Bump CACHE_VERSION when parseFilm() returns new fields: older entries then count as stale.
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 4;
 const isFresh = (entry) => entry && entry.v === CACHE_VERSION && Date.now() - entry.t < TTL_MS;
 
 async function fetchFilm(id) {
@@ -198,9 +214,30 @@ function matches(card) {
   return true;
 }
 
+// Shows the logos of the streaming (Suscripción) platforms under the movie while the extension is enabled.
+function updateLogos(card) {
+  if (!card.logos && card.data) {
+    const names = card.data.providers['Suscripción'] || [];
+    if (!names.length) return;
+    card.logos = document.createElement('div');
+    card.logos.className = 'fafx-logos';
+    for (const name of names) {
+      const url = card.data.icons[name];
+      const img = document.createElement('img');
+      img.alt = img.title = name;
+      // No usable logo (or it fails to load): show the platform name as a small chip instead.
+      const chip = () => { const t = document.createElement('span'); t.textContent = name; t.title = name; img.replaceWith(t); };
+      if (url) { img.src = url; img.onerror = chip; card.logos.append(img); } else card.logos.append(Object.assign(document.createElement('span'), { textContent: name, title: name }));
+    }
+    (card.el.querySelector('.card-body') || card.el).append(card.logos);
+  }
+  card.logos?.classList.toggle('fafx-hidden', !state.enabled);
+}
+
 function applyFilter() {
   const filtering = anyActive();
   for (const card of state.cards) {
+    updateLogos(card);
     card.el.classList.toggle('fafx-hidden', !matches(card));
     card.el.classList.toggle('fafx-pending', filtering && !card.loaded); // dimmed until its data is known
   }

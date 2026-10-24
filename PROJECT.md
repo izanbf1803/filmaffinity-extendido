@@ -1,4 +1,4 @@
-# FilmAffinity Filtros (Chrome extension)
+# Filmaffinity extendido (Chrome extension)
 
 ## Objective
 

@@ -139,7 +139,7 @@ function render() {
     <div class="p-3 space-y-3">
       <header class="flex items-center justify-between rounded-xl px-4 py-3 text-white shadow transition-colors ${off ? 'bg-slate-500 dark:bg-slate-700' : 'bg-blue-600'}">
         <div>
-          <div class="font-semibold">FilmAffinity Filtros</div>
+          <div class="font-semibold">Filmaffinity extendido</div>
           <div class="text-xs ${off ? 'text-slate-200' : 'text-blue-100'}">${off ? 'Desactivado' : 'Activado'}</div>
         </div>
         <button role="switch" aria-checked="${!off}" aria-label="Activar extensión" data-switch="enabled"

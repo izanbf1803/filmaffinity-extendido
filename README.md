@@ -1,6 +1,8 @@
-# FilmAffinity Filtros
+# Filmaffinity extendido
 
-A Chrome extension that adds a filter panel (opened from the toolbar icon) for your [FilmAffinity](https://www.filmaffinity.com/es/main.html) lists, so you can show only the films available on the streaming platforms you choose. Goals and design notes are in [PROJECT.md](PROJECT.md).
+A Chrome extension that extends your [FilmAffinity](https://www.filmaffinity.com/es/main.html) lists with advanced filtering (platform, genre, country, format, year and duration) and with extra information shown right in the list. For example, it shows the streaming platforms where each movie is available, so you don't have to open the movie pages one by one. Goals and design notes are in [PROJECT.md](PROJECT.md).
+
+> **Warning:** this project was vibe coded and, for now, has not been deeply checked for bugs. It is just meant for personal use.
 
 ## Requirements
 
@@ -15,12 +17,12 @@ No API key is needed. The popup's Tailwind CSS is pre-built and committed (`src/
 2. Open `chrome://extensions` in Chrome.
 3. Turn on **Developer mode** (top-right switch).
 4. Click **Load unpacked** and select this project folder.
-5. The extension "FilmAffinity Filtros" now appears in the list. Pin it so its icon is always in the toolbar.
+5. The extension "Filmaffinity extendido" now appears in the list. Pin it so its icon is always in the toolbar.
 
 ## Usage
 
 1. Log in to filmaffinity.com and open one of your lists.
-2. Click the extension icon in the toolbar (pin it from the puzzle-piece menu). The popup lists the platforms found so far; it fills in as the extension reads each film's page (4 parallel workers, about 3 films per second when not cached; cached films resolve instantly), with a `done/total` counter.
+2. Click the extension icon in the toolbar (pin it from the puzzle-piece menu). The popup lists the platforms found so far; it fills in as the extension reads each film's page (4 parallel workers, about 1.6 films per second when not cached; cached films resolve instantly), with a `done/total` counter.
 3. Everything is off by default, and your settings are remembered between visits. The **Restablecer filtros** button at the bottom returns everything to the default (off, nothing selected). The top switch turns the whole extension on or off (while off, nothing is hidden and no film pages are fetched).
 4. **Plataformas** has its own on/off switch, with one switch per platform. Only films available on at least one switched-on platform stay visible; with none switched on, everything is shown. Turning the filter off keeps your selection.
 5. **Géneros** has the same kind of switch, search box and per-genre switches. A film is shown if it has **any** of the switched-on genres. When both filters are active, a film must pass both.
@@ -28,6 +30,8 @@ No API key is needed. The popup's Tailwind CSS is pre-built and committed (`src/
 7. **Año** (from/to, either can be left empty) and **Duración máxima** (minutes) take numbers. Films whose page lacks the value are never hidden by that filter.
 8. **Formato** filters by Película / Serie / Miniserie (any of the switched-on ones). "Serie de TV" is a genre on FilmAffinity and "Miniserie de TV" a topic; the extension reads both here and keeps them out of Géneros.
 9. **Tipo de disponibilidad** chooses which kind of availability counts: Suscripción, Alquiler or Compra. With none switched on, any type counts.
+
+While the extension is on, each movie shows the logos of the platforms that include it in streaming (Suscripción).
 
 Your choices are remembered between visits. Availability data is cached for 1 day, so reopening a list is fast.
 

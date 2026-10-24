@@ -1,2 +1,5 @@
 .fafx-hidden { display: none !important; }
 .fafx-pending { opacity: 0.45; transition: opacity 0.2s; }
+.fafx-logos { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.fafx-logos img { width: 26px; height: 26px; border-radius: 6px; }
+.fafx-logos span { font-size: 11px; line-height: 26px; padding: 0 8px; border-radius: 6px; background: #e2e8f0; color: #334155; }

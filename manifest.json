@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "FilmAffinity Filtros",
+  "name": "Filmaffinity extendido",
   "version": "0.1.0",
-  "description": "Filter FilmAffinity lists by streaming platform.",
+  "description": "Advanced filters and extra info (e.g. streaming platforms) for FilmAffinity lists.",
   "permissions": [
     "storage"
   ],
