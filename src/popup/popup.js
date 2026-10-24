@@ -4,6 +4,7 @@ const TYPES = ['Suscripción', 'Alquiler', 'Compra'];
 let tabId;
 let s = null;          // last state received from the page
 let renderedKey = '';
+let query = '';        // platform search text (kept across re-renders)
 const DEFAULTS = { enabled: false, platformFilter: false, selected: [], types: [] }; // same as src/content.js
 
 const $ = (id) => document.getElementById(id);
@@ -37,13 +38,20 @@ function rowHtml(id, on, label, disabled) {
 const card = (inner) => `<section class="rounded-xl bg-white dark:bg-slate-800 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 p-3">${inner}</section>`;
 const title = (t) => `<h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">${t}</h3>`;
 
+const norm = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+function platformListHtml() {
+  const filterOff = !s.enabled || !s.platformFilter;
+  if (!s.platforms.length) return `<p class="py-2 text-slate-500 dark:text-slate-400">Buscando plataformas…</p>`;
+  const shown = s.platforms.filter((p) => norm(p).includes(norm(query.trim())));
+  if (!shown.length) return `<p class="py-2 text-slate-500 dark:text-slate-400">Sin resultados</p>`;
+  return shown.map((p) => rowHtml('p:' + p, s.selected.includes(p), p, filterOff)).join('');
+}
+
 function render() {
   const off = !s.enabled;
   const isDefault = Object.keys(DEFAULTS).every((k) => JSON.stringify(s[k]) === JSON.stringify(DEFAULTS[k]));
   const filterOff = off || !s.platformFilter;
-  const platforms = s.platforms.length
-    ? s.platforms.map((p) => rowHtml('p:' + p, s.selected.includes(p), p, filterOff)).join('')
-    : `<p class="py-2 text-slate-500 dark:text-slate-400">Buscando plataformas…</p>`;
 
   $('panel').innerHTML = `
     <div class="p-3 space-y-3">
@@ -62,7 +70,10 @@ function render() {
         <div class="flex items-center justify-between">
           ${title('Plataformas')}${switchHtml('platformFilter', s.platformFilter, 'Filtrar por plataforma', off)}
         </div>
-        <div class="mt-1 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60">${platforms}</div>`)}
+        <input id="search" type="search" placeholder="Buscar plataforma…" value="${query.replace(/"/g, '&quot;')}"
+          class="mt-2 w-full rounded-lg border-0 bg-slate-100 px-3 py-1.5 text-sm placeholder-slate-400 outline-none
+                 ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:ring-slate-600">
+        <div id="platform-list" class="mt-1 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60">${platformListHtml()}</div>`)}
 
       ${card(`
         ${title('Tipo de disponibilidad')}
@@ -91,6 +102,13 @@ function renderStatus() {
       <div class="h-full rounded-full bg-indigo-500 transition-all" style="width:${pct}%"></div>
     </div>`;
 }
+
+// Typing only re-renders the list, so the input keeps focus.
+$('panel').addEventListener('input', (e) => {
+  if (e.target.id !== 'search') return;
+  query = e.target.value;
+  $('platform-list').innerHTML = platformListHtml();
+});
 
 // One click handler for every switch (the panel is re-rendered, so delegate from the container).
 $('panel').addEventListener('click', (e) => {
