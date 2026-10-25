@@ -33,7 +33,7 @@ No API key is needed. The popup's Tailwind CSS is pre-built and committed (`src/
 
 While the extension is on, each movie shows its duration (padded to 3 places so rows line up) followed by the logos of the platforms that include it in streaming (Suscripción).
 
-Your choices are remembered between visits. Availability data is cached for 1 day, so reopening a list is fast.
+Your choices are remembered between visits. Availability data is cached for 1 day, so reopening a list is fast. Expired entries are deleted the next time a list is opened with the extension on.
 
 ## Changing the popup styles
 

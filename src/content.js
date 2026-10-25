@@ -139,6 +139,17 @@ const cacheKey = (id) => 'fa:' + id;
 const CACHE_VERSION = 5;
 const isFresh = (entry) => entry && entry.v === CACHE_VERSION && Date.now() - entry.t < TTL_MS;
 
+// Deletes cached films that are expired or from an older CACHE_VERSION, so the cache doesn't grow forever.
+async function removeStale() {
+  try {
+    const all = await chrome.storage.local.get(null);
+    const stale = Object.keys(all).filter((k) => k.startsWith(cacheKey('')) && !isFresh(all[k]));
+    if (stale.length) await chrome.storage.local.remove(stale);
+  } catch (e) {
+    console.warn('[fa-filter] cache cleanup failed:', e.message);
+  }
+}
+
 // A page only counts as a film page if it has the film's title or data sheet. A captcha, block, login or
 // error page served with HTTP 200 (or a redirect to one) would otherwise parse as a film with no platforms,
 // genres or format, be cached for a day, and get hidden by those filters.
@@ -154,7 +165,12 @@ async function fetchFilm(id) {
   const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
   if (!isFilmPage(doc)) throw new Error('not a film page');
   const data = parseFilm(doc);
-  await chrome.storage.local.set({ [cacheKey(id)]: { v: CACHE_VERSION, t: Date.now(), data } });
+  // A failed save (e.g. storage full) only loses the cache entry, not the data just fetched.
+  try {
+    await chrome.storage.local.set({ [cacheKey(id)]: { v: CACHE_VERSION, t: Date.now(), data } });
+  } catch (e) {
+    console.warn('[fa-filter] film', id, 'not cached:', e.message);
+  }
   return data;
 }
 
@@ -210,9 +226,12 @@ async function worker() {
 }
 
 // Starts WORKERS workers on the shared queue. Safe to call again: it resumes after being switched off.
+// The first call on a page removes stale cache entries before anything is fetched (and saved).
+let cleanup = null;
 async function loadAll() {
   if (running || !state.enabled) return;
   running = true;
+  await (cleanup ??= removeStale());
   await resolveFromCache();
   await Promise.all(Array.from({ length: WORKERS }, worker));
   running = false;
