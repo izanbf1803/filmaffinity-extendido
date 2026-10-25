@@ -57,8 +57,8 @@ Go to `chrome://extensions` and click the reload icon on the extension card, the
 - **No platforms found:** open DevTools on a film page and run
   `fetch(location.href).then(r=>r.text()).then(t=>console.log(t.includes('stream-wrapper')))`.
   If it prints `false`, the "Disponible en" block is added by JavaScript and this approach needs changing.
-- **Slow or stalls on long lists:** FilmAffinity may rate-limit requests. Check the DevTools console for `[fa-filter]` warnings; all workers pause 10 seconds after an HTTP 429. You can lower `WORKERS` or raise `MIN_DELAY_MS`/`MAX_DELAY_MS` in `src/content.js`.
-- **Films are never hidden, with `not a film page` or `redirected to` warnings:** the fetched page wasn't a film page (a captcha, block or error page, or a redirect). Those films are left visible and not cached, so they're retried on the next visit. If it happens for every film, FilmAffinity probably changed its markup: update `FILM_PAGE` (and the selectors in `parseFilm()`) in `src/content.js`.
+- **Slow or stalls on long lists:** FilmAffinity may rate-limit requests. Check the DevTools console for `[fa-filter]` warnings; all workers pause 10 seconds after an HTTP 429. A film whose fetch fails with a network error, HTTP 429/5xx or a page that isn't a film page is retried up to 2 times, waiting 5 and then 10 seconds (`RETRIES`, `RETRY_BASE_MS`); other errors (a redirect, a 404) are not retried. You can lower `WORKERS` or raise `MIN_DELAY_MS`/`MAX_DELAY_MS` in `src/content.js`.
+- **Films are never hidden, with `not a film page` or `redirected to` warnings:** the fetched page wasn't a film page (a captcha, block or error page, or a redirect). Those films are left visible and not cached, so they're fetched again on the next visit (a `not a film page` is also retried twice right away). If it happens for every film, FilmAffinity probably changed its markup: update `FILM_PAGE` (and the selectors in `parseFilm()`) in `src/content.js`.
 - **Reset the cache:** remove and re-add the extension (the cache lives in its own storage), or lower `TTL_MS` in `src/content.js`.
 
 ## Publishing to the Chrome Web Store

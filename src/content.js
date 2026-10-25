@@ -6,6 +6,8 @@ const WORKERS = 4;
 const MIN_DELAY_MS = 1000; // random pause after each network fetch, per worker
 const MAX_DELAY_MS = 4000;
 const BACKOFF_MS = 10000; // pause all workers after an HTTP 429
+const RETRIES = 2;          // extra attempts for a film whose fetch failed with a retryable error
+const RETRY_BASE_MS = 5000; // wait before each retry, doubling: 5 s, then 10 s
 
 // User settings (saved in chrome.storage.sync, edited from the popup). Everything is off by default.
 // Lists are stored as Sets here and as arrays when saved/sent. For each filter, an empty selection means "no restriction".
@@ -144,7 +146,8 @@ const FILM_PAGE = '#main-title, dl.movie-info, dd[itemprop="datePublished"]';
 const isFilmPage = (doc) => !!doc.querySelector(FILM_PAGE);
 
 async function fetchFilm(id) {
-  const res = await fetch(`/${location.pathname.split('/')[1]}/film${id}.html`, { credentials: 'include' });
+  const res = await fetch(`/${location.pathname.split('/')[1]}/film${id}.html`, { credentials: 'include' })
+    .catch(() => { throw new Error('network error'); });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   // Errors below leave the card visible and uncached, so it is fetched again on the next visit.
   if (!new URL(res.url).pathname.endsWith(`/film${id}.html`)) throw new Error('redirected to ' + res.url);
@@ -178,17 +181,29 @@ async function resolveFromCache() {
   applyFilter();
 }
 
+// Errors that may go away by themselves: network failures, rate limiting, server errors, and a page that
+// isn't a film page (possibly a temporary block page). A redirect or another 4xx (e.g. a removed film) won't.
+const retryable = (e) => /^(network error|HTTP (429|5\d\d)|not a film page)$/.test(e.message);
+
 async function worker() {
   while (state.enabled && queue.length) {
     const card = queue.shift();
-    if (pausedUntil > Date.now()) await sleep(pausedUntil - Date.now());
-    try {
-      markLoaded(card, await fetchFilm(card.id));
-    } catch (e) {
-      console.warn('[fa-filter] film', card.id, e.message);
-      if (String(e.message).includes('HTTP 429')) pausedUntil = Date.now() + BACKOFF_MS;
-      markLoaded(card, null);
+    let data = null;
+    for (let attempt = 0; ; attempt++) {
+      if (pausedUntil > Date.now()) await sleep(pausedUntil - Date.now());
+      try {
+        data = await fetchFilm(card.id);
+        break;
+      } catch (e) {
+        if (String(e.message).includes('HTTP 429')) pausedUntil = Date.now() + BACKOFF_MS;
+        const retry = attempt < RETRIES && retryable(e);
+        console.warn('[fa-filter] film', card.id, e.message, retry ? `(retry ${attempt + 1}/${RETRIES})` : '');
+        if (!retry) break;
+        await sleep(RETRY_BASE_MS * 2 ** attempt);
+        if (!state.enabled) { queue.unshift(card); return; } // switched off while waiting: keep it for later
+      }
     }
+    markLoaded(card, data);
     applyFilter();
     await sleep(MIN_DELAY_MS + Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS));
   }
