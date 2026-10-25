@@ -74,7 +74,8 @@ function iconUrl(img) {
   return url ? new URL(url, location.origin).href : null;
 }
 
-// Everything the filters need from a film page. Missing values are null so they never hide a film.
+// Everything the filters need from a film page. Missing values are null (or empty genres) so they never
+// hide a film. Only call it on a page that passed isFilmPage(): on any other page everything is "missing".
 function parseFilm(doc) {
   const text = (sel) => doc.querySelector(sel)?.textContent.trim() || '';
   const number = (sel) => parseInt(text(sel).match(/\d+/)?.[0], 10) || null; // "60 min." -> 60
@@ -86,7 +87,9 @@ function parseFilm(doc) {
   const genres = [...doc.querySelectorAll('dd.card-genres span[itemprop="genre"]')]
     .map((el) => el.textContent.trim())
     .filter((g) => !isSeries(g));
-  const kind = labels.some((l) => /^miniserie/i.test(l)) ? 'Miniserie' : labels.some(isSeries) ? 'Serie' : 'Película';
+  // Without a genres block the format is unknown (null), not "Película".
+  const kind = !doc.querySelector('dd.card-genres') ? null
+    : labels.some((l) => /^miniserie/i.test(l)) ? 'Miniserie' : labels.some(isSeries) ? 'Serie' : 'Película';
 
   // Platform logos by name (first one wins when "X" and "X with Ads" share a name after normalizing).
   const icons = {};
@@ -131,13 +134,23 @@ function findCards() {
 
 const cacheKey = (id) => 'fa:' + id;
 // Bump CACHE_VERSION when parseFilm() returns new fields: older entries then count as stale.
-const CACHE_VERSION = 4;
+const CACHE_VERSION = 5;
 const isFresh = (entry) => entry && entry.v === CACHE_VERSION && Date.now() - entry.t < TTL_MS;
+
+// A page only counts as a film page if it has the film's title or data sheet. A captcha, block, login or
+// error page served with HTTP 200 (or a redirect to one) would otherwise parse as a film with no platforms,
+// genres or format, be cached for a day, and get hidden by those filters.
+const FILM_PAGE = '#main-title, dl.movie-info, dd[itemprop="datePublished"]';
+const isFilmPage = (doc) => !!doc.querySelector(FILM_PAGE);
 
 async function fetchFilm(id) {
   const res = await fetch(`/${location.pathname.split('/')[1]}/film${id}.html`, { credentials: 'include' });
   if (!res.ok) throw new Error('HTTP ' + res.status);
-  const data = parseFilm(new DOMParser().parseFromString(await res.text(), 'text/html'));
+  // Errors below leave the card visible and uncached, so it is fetched again on the next visit.
+  if (!new URL(res.url).pathname.endsWith(`/film${id}.html`)) throw new Error('redirected to ' + res.url);
+  const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+  if (!isFilmPage(doc)) throw new Error('not a film page');
+  const data = parseFilm(doc);
   await chrome.storage.local.set({ [cacheKey(id)]: { v: CACHE_VERSION, t: Date.now(), data } });
   return data;
 }
@@ -211,9 +224,9 @@ function matches(card) {
     const types = state.types.size ? [...state.types] : Object.keys(providers);
     if (!types.some((t) => (providers[t] || []).some((p) => state.selected.has(p)))) return false;
   }
-  if (genreActive() && !genres.some((g) => state.selectedGenres.has(g))) return false;
+  if (genreActive() && genres.length && !genres.some((g) => state.selectedGenres.has(g))) return false;
   if (countryActive() && country && !state.selectedCountries.has(country)) return false;
-  if (kindActive() && !state.selectedKinds.has(kind)) return false;
+  if (kindActive() && kind && !state.selectedKinds.has(kind)) return false;
   if (yearActive() && year && ((state.yearFrom && year < state.yearFrom) || (state.yearTo && year > state.yearTo))) return false;
   if (durationActive() && minutes && minutes > state.maxDuration) return false;
   return true;

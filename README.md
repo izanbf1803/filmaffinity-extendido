@@ -27,7 +27,7 @@ No API key is needed. The popup's Tailwind CSS is pre-built and committed (`src/
 4. **Plataformas** has its own on/off switch, with one switch per platform. Only films available on at least one switched-on platform stay visible; with none switched on, everything is shown. Turning the filter off keeps your selection.
 5. **Géneros** has the same kind of switch, search box and per-genre switches. A film is shown if it has **any** of the switched-on genres. When both filters are active, a film must pass both.
 6. **País** works like Géneros: switch, search and per-country switches; a film is shown if its country is any of the switched-on ones.
-7. **Año** (from/to, either can be left empty) and **Duración máxima** (minutes) take numbers. Films whose page lacks the value are never hidden by that filter.
+7. **Año** (from/to, either can be left empty) and **Duración máxima** (minutes) take numbers. Films whose page lacks the value are never hidden by that filter (the same goes for genres, format and country).
 8. **Formato** filters by Película / Serie / Miniserie (any of the switched-on ones). "Serie de TV" is a genre on FilmAffinity and "Miniserie de TV" a topic; the extension reads both here and keeps them out of Géneros.
 9. **Tipo de disponibilidad** chooses which kind of availability counts: Suscripción, Alquiler or Compra. With none switched on, any type counts.
 
@@ -58,6 +58,7 @@ Go to `chrome://extensions` and click the reload icon on the extension card, the
   `fetch(location.href).then(r=>r.text()).then(t=>console.log(t.includes('stream-wrapper')))`.
   If it prints `false`, the "Disponible en" block is added by JavaScript and this approach needs changing.
 - **Slow or stalls on long lists:** FilmAffinity may rate-limit requests. Check the DevTools console for `[fa-filter]` warnings; all workers pause 10 seconds after an HTTP 429. You can lower `WORKERS` or raise `MIN_DELAY_MS`/`MAX_DELAY_MS` in `src/content.js`.
+- **Films are never hidden, with `not a film page` or `redirected to` warnings:** the fetched page wasn't a film page (a captcha, block or error page, or a redirect). Those films are left visible and not cached, so they're retried on the next visit. If it happens for every film, FilmAffinity probably changed its markup: update `FILM_PAGE` (and the selectors in `parseFilm()`) in `src/content.js`.
 - **Reset the cache:** remove and re-add the extension (the cache lives in its own storage), or lower `TTL_MS` in `src/content.js`.
 
 ## Publishing to the Chrome Web Store
