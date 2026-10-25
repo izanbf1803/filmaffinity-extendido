@@ -19,6 +19,13 @@
       ],
       "css": [
         "src/content.css"
+      ],
+      "exclude_globs": [
+        "*FASID*",
+        "*/sharerating*",
+        "*/userratings*",
+        "*/userrating*",
+        "*/names-together*"
       ]
     }
   ],

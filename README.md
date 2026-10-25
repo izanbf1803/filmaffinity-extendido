@@ -73,6 +73,22 @@ tailwind.config.js
 PROJECT.md         objectives, research and roadmap
 ```
 
+## Respecting robots.txt
+
+The extension does not run on the pages that FilmAffinity's robots.txt disallows:
+
+```
+User-agent: *
+Disallow: /*?FASID
+Disallow: /*&FASID
+Disallow: /*/sharerating
+Disallow: /*/userratings
+Disallow: /*/userrating
+Disallow: /*/names-together
+```
+
+This is done with `exclude_globs` in `manifest.json` (`*FASID*`, `*/sharerating*`, `*/userratings*`, `*/userrating*`, `*/names-together*`), so on those pages the extension isn't even injected and the popup shows "Abre una lista". The only pages it ever fetches are film pages (`/<lang>/film<ID>.html`), which are not disallowed. If FilmAffinity changes its robots.txt, update this list.
+
 ## Data and privacy
 
 The extension only talks to filmaffinity.com, using your existing session. Availability data comes from FilmAffinity's own "Disponible en" section, which is provided by JustWatch (credited in the popup). Nothing is sent anywhere else.
