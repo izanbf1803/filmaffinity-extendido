@@ -31,7 +31,7 @@ No API key is needed. The popup's Tailwind CSS is pre-built and committed (`src/
 8. **Formato** filters by Película / Serie / Miniserie (any of the switched-on ones). "Serie de TV" is a genre on FilmAffinity and "Miniserie de TV" a topic; the extension reads both here and keeps them out of Géneros.
 9. **Tipo de disponibilidad** chooses which kind of availability counts: Suscripción, Alquiler or Compra. With none switched on, any type counts.
 
-While the extension is on, each movie shows the logos of the platforms that include it in streaming (Suscripción).
+While the extension is on, each movie shows its duration (padded to 3 places so rows line up) followed by the logos of the platforms that include it in streaming (Suscripción).
 
 Your choices are remembered between visits. Availability data is cached for 1 day, so reopening a list is fast.
 
@@ -53,12 +53,16 @@ Go to `chrome://extensions` and click the reload icon on the extension card, the
 ## Troubleshooting
 
 - **Popup says "Abre una lista":** the extension only activates on pages with 2 or more film links, and not on single film pages. If you just reloaded the extension, refresh the FilmAffinity tab too.
-- **Wrong cards hidden, or none hidden:** the extension hides `li.list-row` on lists (and falls back to `.movie-card`, `li` or `tr` elsewhere). Adjust `LIST_ROW` / `FALLBACK_CARD` in `src/content.js` to match the list's markup (inspect a film entry in DevTools).
+- **Wrong cards hidden, or none hidden:** the extension hides the whole entry: `li.list-row` on user lists, a plain `li` or `tr` on rankings (and the inner `.movie-card` only as a last resort). Adjust `ENTRY` in `src/content.js` to match the list's markup (inspect a film entry in DevTools).
 - **No platforms found:** open DevTools on a film page and run
   `fetch(location.href).then(r=>r.text()).then(t=>console.log(t.includes('stream-wrapper')))`.
   If it prints `false`, the "Disponible en" block is added by JavaScript and this approach needs changing.
 - **Slow or stalls on long lists:** FilmAffinity may rate-limit requests. Check the DevTools console for `[fa-filter]` warnings; all workers pause 10 seconds after an HTTP 429. You can lower `WORKERS` or raise `MIN_DELAY_MS`/`MAX_DELAY_MS` in `src/content.js`.
 - **Reset the cache:** remove and re-add the extension (the cache lives in its own storage), or lower `TTL_MS` in `src/content.js`.
+
+## Publishing to the Chrome Web Store
+
+`npm run package` builds `dist/filmaffinity-extendido-<version>.zip` (manifest at the zip root, no dev files). Texts, permission justifications and graphics for the dashboard are in `store/LISTING.md`; the privacy policy is `PRIVACY.md`. Bump `version` in `manifest.json` for every new upload.
 
 ## Project layout
 
@@ -66,6 +70,10 @@ Go to `chrome://extensions` and click the reload icon on the extension card, the
 manifest.json      Manifest V3 definition
 src/content.js     card detection, film page fetching/parsing, filtering
 src/content.css    hidden-card style
+icons/             extension icons (16, 48, 128)
+store/             Web Store listing texts and graphics
+scripts/package.sh builds the zip for the store
+PRIVACY.md         privacy policy
 src/background.js  draws the toolbar icon (blue = enabled, dark grey = disabled)
 src/popup/        filter panel (popup.html/js, Tailwind input.css -> tailwind.css)
 package.json       Tailwind build scripts (dev only)
@@ -88,6 +96,10 @@ Disallow: /*/names-together
 ```
 
 This is done with `exclude_globs` in `manifest.json` (`*FASID*`, `*/sharerating*`, `*/userratings*`, `*/userrating*`, `*/names-together*`), so on those pages the extension isn't even injected and the popup shows "Abre una lista". The only pages it ever fetches are film pages (`/<lang>/film<ID>.html`), which are not disallowed. If FilmAffinity changes its robots.txt, update this list.
+
+## Pages where it is off
+
+Besides the robots.txt pages above, the extension is also disabled on the home page (`/<lang>/main.html`, e.g. https://www.filmaffinity.com/es/main.html) through `*/main.html` in `exclude_globs`.
 
 ## Data and privacy
 

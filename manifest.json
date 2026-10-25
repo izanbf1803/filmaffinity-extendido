@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Filmaffinity extendido",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Advanced filters and extra info (e.g. streaming platforms) for FilmAffinity lists.",
   "permissions": [
     "storage"
@@ -25,11 +25,17 @@
         "*/sharerating*",
         "*/userratings*",
         "*/userrating*",
-        "*/names-together*"
+        "*/names-together*",
+        "*/main.html"
       ]
     }
   ],
   "background": {
     "service_worker": "src/background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   }
 }

@@ -105,21 +105,26 @@ function parseFilm(doc) {
 
 // ---- page scanning -------------------------------------------------------
 
-// Cards are found via links to film pages. On list pages the whole entry is `li.list-row`
-// (position number, buttons, movie card); hiding only the inner `.movie-card` would leave empty rows.
-// Other pages fall back to the closest card-like ancestor.
-const LIST_ROW = 'li.list-row';
-const FALLBACK_CARD = '.movie-card, li, tr';
+// Cards are found via links to film pages. The element to hide is the whole entry (position number,
+// buttons, movie card): `li.list-row` on user lists, a plain `li` (or `tr`) on rankings. Hiding only the
+// inner `.movie-card` would leave an empty entry behind, so it is just the last resort.
+const ENTRY = 'li.list-row, li, tr';
 
 function findCards() {
   const byId = new Map();
   for (const a of document.querySelectorAll('a[href*="/film"]')) {
     const m = a.getAttribute('href').match(/\/film(\d+)\.html/);
-    if (!m || byId.has(m[1])) continue;
-    const el = a.closest(LIST_ROW) || a.closest(FALLBACK_CARD) || a.parentElement;
-    byId.set(m[1], { id: m[1], el, data: null });
+    if (!m || byId.has(m[1]) || a.closest('nav, header, footer')) continue;
+    const el = a.closest(ENTRY) || a.closest('.movie-card') || a.parentElement;
+    byId.set(m[1], { id: m[1], el, card: a.closest('.movie-card'), data: null });
   }
-  return [...byId.values()];
+  const cards = [...byId.values()];
+  // If several films share one "entry" (e.g. the whole list sits inside one li), hiding it would hide
+  // them all together: use each film's own movie card instead.
+  const uses = new Map();
+  cards.forEach((c) => uses.set(c.el, (uses.get(c.el) || 0) + 1));
+  cards.forEach((c) => { if (uses.get(c.el) > 1 && c.card) c.el = c.card; });
+  return cards;
 }
 
 // ---- fetching + cache ----------------------------------------------------
@@ -214,14 +219,19 @@ function matches(card) {
   return true;
 }
 
-// Shows the logos of the streaming (Suscripción) platforms under the movie while the extension is enabled.
+// Under each movie (while the extension is enabled): its duration, then the logos of the streaming
+// (Suscripción) platforms. The duration is padded to 3 places so 90 and 110 line up between rows.
 function updateLogos(card) {
   if (!card.logos && card.data) {
-    const names = card.data.providers['Suscripción'] || [];
-    if (!names.length) return;
     card.logos = document.createElement('div');
     card.logos.className = 'fafx-logos';
-    for (const name of names) {
+
+    const duration = document.createElement('span');
+    duration.className = 'fafx-duration';
+    duration.textContent = String(card.data.minutes ?? '—').padStart(3, '\u2007') + ' min'; // figure space = digit width
+    card.logos.append(duration);
+
+    for (const name of card.data.providers['Suscripción'] || []) {
       const url = card.data.icons[name];
       const img = document.createElement('img');
       img.alt = img.title = name;

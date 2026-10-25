@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "build:css": "tailwindcss -i src/popup/input.css -o src/popup/tailwind.css --minify",
-    "watch:css": "tailwindcss -i src/popup/input.css -o src/popup/tailwind.css --watch"
+    "watch:css": "tailwindcss -i src/popup/input.css -o src/popup/tailwind.css --watch",
+    "package": "bash scripts/package.sh"
   },
   "devDependencies": {
     "tailwindcss": "3.4.17"
