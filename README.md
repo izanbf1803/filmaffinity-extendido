@@ -4,6 +4,16 @@ A Chrome extension that extends your [FilmAffinity](https://www.filmaffinity.com
 
 > **Warning:** this project was vibe coded and, for now, has not been deeply checked for bugs. It is just meant for personal use.
 
+## Screenshots
+
+A ranking with the extension on: each movie shows its duration and the logos of the streaming platforms that include it.
+
+<img src="img/example-results.png" alt="FilmAffinity ranking where each movie shows its duration and streaming platform logos" width="600">
+
+The filter popup: platforms, availability type, genres, country, format, year and maximum duration, each with its own switch.
+
+<img src="img/example-ui.png" alt="Extension popup with the platform, availability type, country, format and year filters" width="600">
+
 ## Requirements
 
 - Google Chrome (or any Chromium browser with Manifest V3 support: Edge, Brave, ...).
