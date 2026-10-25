@@ -35,8 +35,8 @@ Esta extensión no está afiliada a Filmaffinity ni a JustWatch. Filmaffinity es
 **Single purpose:** Filtrar y enriquecer con información (plataformas, duración) las listas y rankings de películas de Filmaffinity.
 
 **Permission justifications**
-- `storage`: guardar los ajustes de los filtros y una caché de un día de los datos de las películas.
-- Host access `https://www.filmaffinity.com/*` (content script): leer las listas/rankings para ocultar las películas que no cumplen los filtros, y cargar las fichas de las películas (mismo sitio) para obtener plataformas, géneros, país, año y duración.
+- `storage`: Para evitar saturar los servidores de Filmaffinity.com, la extensión guarda localmente los datos de las películas consultadas en tus listas durante un corto período de tiempo (1 día), consiguiendo así evitar costes innecesarios para Filmaffinity.com.
+- Host access `https://www.filmaffinity.com/*` (content script): La extensión necesita poder acceder a URLs dentro de Filmaffinity (https://www.filmaffinity.com/*) para poder recopilar la información sobre las películas de tus listas / rankings.
 
 **Remote code:** No, I am not using remote code. (All code is in the package; the only requests are page loads on filmaffinity.com.)
 

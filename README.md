@@ -62,7 +62,7 @@ Go to `chrome://extensions` and click the reload icon on the extension card, the
 
 ## Publishing to the Chrome Web Store
 
-`npm run package` builds `dist/filmaffinity-extendido-<version>.zip` (manifest at the zip root, no dev files). Texts, permission justifications and graphics for the dashboard are in `store/LISTING.md`; the privacy policy is `PRIVACY.md`. Bump `version` in `manifest.json` for every new upload.
+`npm run package` builds `dist/filmaffinity-extendido-<version>.zip` (manifest at the zip root, no dev files). Texts, permission justifications and graphics for the dashboard are in `store/LISTING.md`; the privacy policy is `PRIVACY.md`. For a new release run `npm run package -- patch` (or `minor` / `major`), which bumps `version` in `manifest.json` first, since the store needs a higher version for every upload.
 
 ## Project layout
 
