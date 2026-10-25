@@ -10,7 +10,7 @@ Esta extensión **no recoge, almacena en servidores ni transmite datos personale
 - **Qué guarda, y dónde:** tus ajustes de filtros (en `chrome.storage.sync`, que Chrome puede sincronizar con tu cuenta de Google) y una caché temporal de los datos de las películas, de un día (en `chrome.storage.local`, solo en tu navegador). No se guarda nada más.
 - **Conexiones de red:** únicamente a filmaffinity.com. No hay servidores del autor, analíticas, publicidad ni rastreadores.
 - **Datos de plataformas:** proceden de la sección "Disponible en" de Filmaffinity, que ofrece JustWatch.
-- **Permisos:** `storage` (guardar ajustes y caché) y acceso a `https://www.filmaffinity.com/*` (leer y filtrar las páginas de listas).
+- **Permisos:** `storage` (guardar ajustes y caché), `activeTab` (al abrir la ventana de la extensión, ver la dirección de la pestaña actual para saber si la extensión está desactivada en esa página) y acceso a `https://www.filmaffinity.com/*` (leer y filtrar las páginas de listas).
 
 Esta extensión no está afiliada a Filmaffinity ni a JustWatch.
 
@@ -24,7 +24,7 @@ This extension **does not collect, store on any server, or transmit personal dat
 - **What it stores, and where:** your filter settings (`chrome.storage.sync`, which Chrome may sync with your Google account) and a one-day cache of film data (`chrome.storage.local`, only in your browser). Nothing else is stored.
 - **Network connections:** only to filmaffinity.com. There are no author servers, analytics, ads or trackers.
 - **Platform data:** comes from FilmAffinity's own "Disponible en" section, which is provided by JustWatch.
-- **Permissions:** `storage` (settings and cache) and access to `https://www.filmaffinity.com/*` (read and filter list pages).
+- **Permissions:** `storage` (settings and cache), `activeTab` (when the popup is opened, read the current tab's address to tell whether the extension is disabled on that page) and access to `https://www.filmaffinity.com/*` (read and filter list pages).
 
 This extension is not affiliated with FilmAffinity or JustWatch.
 

@@ -52,7 +52,7 @@ Go to `chrome://extensions` and click the reload icon on the extension card, the
 
 ## Troubleshooting
 
-- **Popup says "Abre una lista":** the extension only activates on pages with 2 or more film links, and not on single film pages. If you just reloaded the extension, refresh the FilmAffinity tab too.
+- **Popup says "Abre una lista":** the extension only activates on pages with 2 or more film links, and is not injected on single film pages. If you just reloaded the extension, refresh the FilmAffinity tab too.
 - **Wrong cards hidden, or none hidden:** the extension hides the whole entry: `li.list-row` on user lists, a plain `li` or `tr` on rankings (and the inner `.movie-card` only as a last resort). Adjust `ENTRY` in `src/content.js` to match the list's markup (inspect a film entry in DevTools).
 - **No platforms found:** open DevTools on a film page and run
   `fetch(location.href).then(r=>r.text()).then(t=>console.log(t.includes('stream-wrapper')))`.
@@ -95,11 +95,11 @@ Disallow: /*/userrating
 Disallow: /*/names-together
 ```
 
-This is done with `exclude_globs` in `manifest.json` (`*FASID*`, `*/sharerating*`, `*/userratings*`, `*/userrating*`, `*/names-together*`), so on those pages the extension isn't even injected and the popup shows "Abre una lista". The only pages it ever fetches are film pages (`/<lang>/film<ID>.html`), which are not disallowed. If FilmAffinity changes its robots.txt, update this list.
+This is done with `exclude_globs` in `manifest.json` (`*FASID*`, `*/sharerating*`, `*/userratings*`, `*/userrating*`, `*/names-together*`), so on those pages the extension isn't even injected (see "Pages where it is off" below for what the popup shows). The only pages it ever fetches are film pages (`/<lang>/film<ID>.html`), which are not disallowed. If FilmAffinity changes its robots.txt, update this list.
 
 ## Pages where it is off
 
-Besides the robots.txt pages above, the extension is also disabled on the home page (`/<lang>/main.html`, e.g. https://www.filmaffinity.com/es/main.html) through `*/main.html` in `exclude_globs`.
+Besides the robots.txt pages above, the extension is also disabled on the home page (`/<lang>/main.html`, e.g. https://www.filmaffinity.com/es/main.html) through `*/main.html` in `exclude_globs`, and on film pages (`/<lang>/film<ID>.html`) through `https://www.filmaffinity.com/*/film*` in `exclude_matches`. On all these pages the popup says "Desactivado en esta página", with the main switch disabled, so settings can't be changed (and saved over) from a page that never loaded them. The popup reads the exclusions from `manifest.json` itself, so they only need to be edited there.
 
 ## Data and privacy
 

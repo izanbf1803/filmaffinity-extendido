@@ -235,7 +235,42 @@ async function poll() {
   if (key !== renderedKey) { renderedKey = key; render(); } else renderStatus();
 }
 
+// True when manifest.json keeps the content script off `url` (exclude_matches / exclude_globs), so the
+// exclusions are only listed once. Both use `*` for any characters; globs also use `?` for one character.
+function isExcluded(url) {
+  if (!url) return false; // no URL access for this tab: treat it like any page without the content script
+  url = url.split('#')[0];
+  const wildcard = (pattern, glob) => new RegExp('^' + [...pattern].map((ch) =>
+    ch === '*' ? '.*' : glob && ch === '?' ? '.' : ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('') + '$');
+  const { matches = [], exclude_matches = [], exclude_globs = [] } = chrome.runtime.getManifest().content_scripts[0];
+  return matches.some((p) => wildcard(p).test(url)) &&
+    (exclude_matches.some((p) => wildcard(p).test(url)) || exclude_globs.some((p) => wildcard(p, true).test(url)));
+}
+
+// Excluded pages: the main switch is shown disabled, with a message instead of the filters.
+function renderExcluded() {
+  $('msg').hidden = true;
+  $('panel').hidden = false;
+  $('panel').innerHTML = `
+    <div class="p-3 space-y-3">
+      <header class="flex items-center justify-between rounded-xl px-4 py-3 text-white shadow bg-slate-500 dark:bg-slate-700">
+        <div>
+          <div class="font-semibold">Filmaffinity extendido</div>
+          <div class="text-xs text-slate-200">Desactivado en esta página</div>
+        </div>
+        <button role="switch" aria-checked="false" aria-label="Activar extensión" disabled
+          class="relative inline-flex h-6 w-11 items-center rounded-full opacity-40 bg-slate-400 dark:bg-slate-500">
+          <span class="inline-block h-5 w-5 rounded-full shadow translate-x-0.5 bg-white"></span>
+        </button>
+      </header>
+      <p class="px-1 text-slate-500 dark:text-slate-400">
+        La extensión está desactivada en esta página. Abre una lista o ranking de FilmAffinity para usar los filtros.
+      </p>
+    </div>`;
+}
+
 chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+  if (isExcluded(tab.url)) return renderExcluded();
   tabId = tab.id;
   poll();
   setInterval(poll, 700);

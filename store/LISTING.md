@@ -36,6 +36,7 @@ Esta extensión no está afiliada a Filmaffinity ni a JustWatch. Filmaffinity es
 
 **Permission justifications**
 - `storage`: Para evitar saturar los servidores de Filmaffinity.com, la extensión guarda localmente los datos de las películas consultadas en tus listas durante un corto período de tiempo (1 día), consiguiendo así evitar costes innecesarios para Filmaffinity.com.
+- `activeTab`: Al abrir la ventana de la extensión, se lee la dirección de la pestaña actual para saber si es una página de Filmaffinity donde la extensión está desactivada (fichas de películas y páginas excluidas por robots.txt) y avisar de ello. No se lee ni se guarda nada más.
 - Host access `https://www.filmaffinity.com/*` (content script): La extensión necesita poder acceder a URLs dentro de Filmaffinity (https://www.filmaffinity.com/*) para poder recopilar la información sobre las películas de tus listas / rankings.
 
 **Remote code:** No, I am not using remote code. (All code is in the package; the only requests are page loads on filmaffinity.com.)

@@ -21,8 +21,8 @@ Thumbs.db
 .vscode/
 *.swp
 
-# Claude Code local settings
-.claude/settings.local.json
+# Claude Code local files
+.claude/
 
 # Packaged extension output
 dist/

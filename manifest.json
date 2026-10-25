@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "description": "Filtros avanzados e información extra (como las plataformas de streaming) para tus listas de Filmaffinity.",
   "permissions": [
-    "storage"
+    "storage",
+    "activeTab"
   ],
   "action": {
     "default_popup": "src/popup/popup.html"
@@ -19,6 +20,9 @@
       ],
       "css": [
         "src/content.css"
+      ],
+      "exclude_matches": [
+        "https://www.filmaffinity.com/*/film*"
       ],
       "exclude_globs": [
         "*FASID*",
